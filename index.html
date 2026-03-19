@@ -29,10 +29,8 @@
             <li><button onclick="navTo('daily')" class="nav-btn w-full text-left p-4 hover:bg-slate-700" id="btn-daily">☀️ <span id="ui-nav-daily">每日工作透視</span></button></li>
         </ul>
         <div class="p-4 border-t border-slate-700 space-y-2">
-            <div class="grid grid-cols-2 gap-2 mb-2">
-                <button onclick="exportJSON()" class="bg-slate-600 hover:bg-slate-500 text-white py-2 rounded text-[10px] font-bold shadow-sm"><span id="ui-btn-backup">本機備份</span></button>
-                <button onclick="document.getElementById('importFile').click()" class="bg-slate-600 hover:bg-slate-500 text-white py-2 rounded text-[10px] font-bold shadow-sm"><span id="ui-btn-restore">本機還原</span></button>
-                <input type="file" id="importFile" class="hidden" accept=".json" onchange="importJSON(event)">
+            <div class="mb-2">
+                <button onclick="syncFromCloud(true)" class="w-full bg-blue-600 hover:bg-blue-500 text-white py-3 rounded text-sm font-bold shadow-md transition">🔄 <span id="ui-btn-force-sync">強制更新雲端同步</span></button>
             </div>
             <button onclick="doExport()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded text-sm font-bold shadow-md transition">📊 <span id="ui-btn-export">匯出完整 Excel</span></button>
             <button onclick="toggleLang()" class="w-full bg-slate-700 hover:bg-slate-600 text-xs py-2 rounded border border-slate-500 transition font-bold">🌐 中文 / 日本語 切換</button>
@@ -110,17 +108,18 @@
         let currentDept = 'mfg', isChanged = false, currentLang = 'zh';
 
         const i18n = {
-            zh: { mainTitle: "製造與品保工作排程系統", subTitle: "日本荒尾分工廠專用", navEdit: "編輯週報/日報", navHistory: "歷史紀錄庫", navDaily: "每日工作透視", editTitle: "報表編輯", btnNew: "建立新週報", btnSave: "儲存並同步至雲端", btnExport: "匯出完整 Excel", btnBackup: "本機備份", btnRestore: "本機還原", lblDate: "日期區間 (Start - End)", lblSummary: "本週摘要 (Enter 自動編號)", thDate: "日期", thName: "人員", thTask: "排程內容", thAction: "操作", btnAdd: "新增排程項目", historyTitle: "歷史紀錄庫", dailyTitle: "每日工作透視", warn: "尚未儲存，確定要切換嗎？", saveOk: "雲端同步成功！最新資料已匯入本機。" },
-            ja: { mainTitle: "製造・品質保証スケジュール", subTitle: "日本荒尾分工場専用", navEdit: "週報/日報の編集", navHistory: "履歴ログ", navDaily: "日次ビュー", editTitle: "レポート編集", btnNew: "新規作成", btnSave: "クラウドに保存して同期", btnExport: "Excel出力", btnBackup: "ローカル預金", btnRestore: "ローカル修復", lblDate: "日付期間 (Start - End)", lblSummary: "今週の概要 (自動番号)", thDate: "日付", thName: "担当者", thTask: "業務内容", thAction: "操作", btnAdd: "項目を追加", historyTitle: "履歴ログ", dailyTitle: "日次ビュー", warn: "保存されていない変更があります。", saveOk: "クラウドと同期しました！" }
+            zh: { mainTitle: "製造與品保工作排程系統", subTitle: "日本荒尾分工廠專用", navEdit: "編輯週報/日報", navHistory: "歷史紀錄庫", navDaily: "每日工作透視", editTitle: "報表編輯", btnNew: "建立新週報", btnSave: "儲存並同步至雲端", btnExport: "匯出完整 Excel", btnForceSync: "強制更新雲端同步", lblDate: "日期區間 (Start - End)", lblSummary: "本週摘要 (Enter 自動編號)", thDate: "日期", thName: "人員", thTask: "排程內容", thAction: "操作", btnAdd: "新增排程項目", historyTitle: "歷史紀錄庫", dailyTitle: "每日工作透視", warn: "尚未儲存，確定要切換嗎？", saveOk: "雲端同步成功！最新資料已匯入本機。" },
+            ja: { mainTitle: "製造・品質保証スケジュール", subTitle: "日本荒尾分工場専用", navEdit: "週報/日報の編集", navHistory: "履歴ログ", navDaily: "日次ビュー", editTitle: "レポート編集", btnNew: "新規作成", btnSave: "クラウドに保存して同期", btnExport: "Excel出力", btnForceSync: "クラウドと強制同期", lblDate: "日付期間 (Start - End)", lblSummary: "今週の概要 (自動番号)", thDate: "日付", thName: "担当者", thTask: "業務内容", thAction: "操作", btnAdd: "項目を追加", historyTitle: "履歴ログ", dailyTitle: "日次ビュー", warn: "保存されていない変更があります。", saveOk: "クラウドと同期しました！" }
         };
 
-        async function syncFromCloud() {
+        async function syncFromCloud(force = false) {
             if(GAS_URL.includes("在此貼上") || GAS_URL.trim() === "") {
                 document.getElementById('cloud-status').innerText = "⚠️ 未設定雲端連線，目前為本機離線模式";
+                if(force) alert("⚠️ 未設定雲端連線網址！");
                 return;
             }
             try {
-                document.getElementById('cloud-status').innerText = "🔄 正在與雲端背景同步...";
+                document.getElementById('cloud-status').innerText = "🔄 正在與雲端同步...";
                 const res = await fetch(GAS_URL);
                 const cloudDb = await res.json();
                 if(cloudDb && Object.keys(cloudDb).length > 0) {
@@ -129,9 +128,17 @@
                 }
                 document.getElementById('cloud-status').innerText = "☁️ 雲端同步完成 (Online)";
                 setTimeout(() => document.getElementById('cloud-status').innerText = "", 5000);
+                
+                const hList = document.getElementById('section-history');
+                const dList = document.getElementById('section-daily');
+                if(hList && !hList.classList.contains('hidden')) renderHistory();
+                if(dList && !dList.classList.contains('hidden')) renderDaily();
+                
+                if(force) alert("✅ 已成功從雲端更新最新資料！");
             } catch(e) {
                 console.error(e);
-                document.getElementById('cloud-status').innerHTML = "<span class='text-red-400'>⚠️ 雲端不穩定，目前使用本機紀錄</span>";
+                document.getElementById('cloud-status').innerHTML = "<span class='text-red-400'>⚠️ 雲端連線失敗</span>";
+                if(force) alert("⚠️ 連線失敗，無法同步最新資料。");
             }
         }
         
@@ -181,8 +188,7 @@
             document.getElementById('ui-btn-new').innerText = L.btnNew;
             document.getElementById('ui-btn-save').innerText = L.btnSave;
             document.getElementById('ui-btn-export').innerText = L.btnExport;
-            document.getElementById('ui-btn-backup').innerText = L.btnBackup;
-            document.getElementById('ui-btn-restore').innerText = L.btnRestore;
+            if(document.getElementById('ui-btn-force-sync')) document.getElementById('ui-btn-force-sync').innerText = L.btnForceSync;
             document.getElementById('ui-lbl-date').innerText = L.lblDate;
             document.getElementById('ui-lbl-summary').innerText = L.lblSummary;
             document.getElementById('ui-th-date').innerText = L.thDate;
@@ -217,7 +223,8 @@
                     });
                     const result = await res.json();
                     if(result.status === "success" && result.db) {
-                        db = result.db; // 以雲端最新的全局狀態覆寫
+                        // 修正：以本機資料為底，融入雲端的全局資料。避免離線時編輯未上傳的其他紀錄被雲端覆蓋洗掉！
+                        db = { ...db, ...result.db }; 
                         document.getElementById('cloud-status').innerText = "☁️ 雲端儲存與同步成功！";
                         setTimeout(() => document.getElementById('cloud-status').innerText = "", 3000);
                         alert(i18n[currentLang].saveOk);
@@ -238,6 +245,7 @@
             const wb = XLSX.utils.book_new();
             const borderStyle = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
             Object.values(db).forEach(r => {
+                if(r.deleted) return;
                 const sn = `${r.s}~${r.e}(${r.dept==='mfg'?'製造':'品保'})`.substring(0,31);
                 const rawData = [["日期", "人員", "內容(中)", "內容(日)"]];
                 r.items.forEach(i => rawData.push([i.date, i.name, i.zh, i.ja]));
@@ -264,33 +272,6 @@
             XLSX.writeFile(wb, "Arao_Report.xlsx");
         }
 
-        function exportJSON() {
-            const blob = new Blob([JSON.stringify(db, null, 2)], { type: "application/json" });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Arao_Data_Backup_${new Date().toLocaleDateString()}.json`;
-            a.click();
-        }
-
-        function importJSON(event) {
-            const reader = new FileReader();
-            reader.onload = async function(e) {
-                try {
-                    const imported = JSON.parse(e.target.result);
-                    let count = 0;
-                    for (let key in imported) {
-                        db[key] = imported[key];
-                        count++;
-                    }
-                    localStorage.setItem('fb_arao_final_v32_db', JSON.stringify(db));
-                    alert(`成功從檔案合併 ${count} 筆報表紀錄至本機！(不會自動上傳至雲端)`);
-                    if(document.getElementById('section-history').classList.contains('hidden') === false) renderHistory();
-                } catch (err) { alert("檔案解析錯誤！"); }
-            };
-            reader.readAsText(event.target.files[0]);
-        }
-
         function clearAllData() {
             if(confirm("這將會永久刪除本機瀏覽器中的所有週報快取，確定嗎？ (不影響雲端與他人檔案)")) {
                 db = {};
@@ -309,7 +290,7 @@
                 let html = `<div class="bg-white rounded-xl shadow p-6 border-t-8 ${dept==='mfg'?'border-blue-600':'border-purple-600'}">`;
                 html += `<h2 class="text-xl font-black text-slate-800 mb-4">${name}</h2>`;
                 let found = false;
-                Object.values(db).filter(r => r.dept === dept).forEach(r => {
+                Object.values(db).filter(r => r.dept === dept && !r.deleted).forEach(r => {
                     const todayItems = r.items.filter(i => i.date === date);
                     if(todayItems.length > 0) {
                         found = true;
@@ -376,16 +357,55 @@
         function renderHistory() {
             const list = document.getElementById('histList'); list.innerHTML = '';
             Object.keys(db).sort().reverse().forEach(id => {
-                const r = db[id]; const card = document.createElement('div');
-                card.className = "bg-white p-5 rounded-xl border border-l-4 shadow-sm hover:shadow-md cursor-pointer " + (r.dept==='mfg'?'border-l-blue-500':'border-l-purple-500');
-                card.innerHTML = `<div class="font-bold text-slate-800">${r.dept.toUpperCase()} | ${r.s} ~ ${r.e}</div><div class="text-[10px] text-slate-400 mt-1">${r.updated}</div><p class="text-xs text-slate-500 mt-2 truncate italic">${r.summary.substring(0,50)}</p>`;
+                const r = db[id]; 
+                if(r.deleted) return; 
+                const card = document.createElement('div');
+                card.className = "relative bg-white p-5 rounded-xl border border-l-4 shadow-sm hover:shadow-md cursor-pointer " + (r.dept==='mfg'?'border-l-blue-500':'border-l-purple-500');
+                card.innerHTML = `
+                    <div class="font-bold text-slate-800 pr-16">${r.dept.toUpperCase()} | ${r.s} ~ ${r.e}</div>
+                    <div class="text-[10px] text-slate-400 mt-1">${r.updated}</div>
+                    <p class="text-xs text-slate-500 mt-2 truncate italic">${r.summary.substring(0,50)}</p>
+                    <button onclick="event.stopPropagation(); deleteRecord('${id}')" class="absolute top-4 right-4 bg-red-100 text-red-500 hover:bg-red-600 hover:text-white rounded px-2 py-1 font-bold text-xs transition z-10">🗑️ 刪除</button>
+                `;
                 card.onclick = () => { if(isChanged && !confirm(i18n[currentLang].warn)) return; loadRecord(id); };
                 list.appendChild(card);
             });
         }
 
+        async function deleteRecord(id) {
+            if(!confirm("確定要永久刪除此筆紀錄嗎？（若雲端連線正常，也會同步從雲端刪除）")) return;
+            db[id] = { deleted: true };
+            localStorage.setItem('fb_arao_final_v32_db', JSON.stringify(db));
+            
+            if(!GAS_URL.includes("在此貼上") && GAS_URL.trim() !== "") {
+                try {
+                    document.getElementById('cloud-status').innerText = "🗑️ 正在同步刪除至雲端...";
+                    const res = await fetch(GAS_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({ id: id, data: { deleted: true } }),
+                        headers: { "Content-Type": "text/plain;charset=utf-8" }
+                    });
+                    const result = await res.json();
+                    if(result.status === "success" && result.db) {
+                        db = { ...db, ...result.db }; 
+                    }
+                    document.getElementById('cloud-status').innerText = "☁️ 雲端紀錄已刪除";
+                    setTimeout(() => document.getElementById('cloud-status').innerText = "", 3000);
+                } catch(e) {
+                    console.error(e);
+                    alert("⚠️ 雲端連線失敗，目前僅於本機隱藏。");
+                }
+            }
+            renderHistory();
+        }
+
         function loadRecord(id) {
             const r = db[id]; currentDept = r.dept;
+            
+            // 修正：強制更新畫面上的「製造/品保」藍底按鈕，防止出現「點進 QA 紀錄，畫面上方卻亮著 MFG，導致使用者以為壞掉或是將新寫的內容又誤存回 QA」
+            document.getElementById('dept-mfg').className = (r.dept === 'mfg') ? 'px-4 py-1 rounded-md text-sm dept-active' : 'px-4 py-1 rounded-md text-sm text-slate-600 font-bold';
+            document.getElementById('dept-qa').className = (r.dept === 'qa') ? 'px-4 py-1 rounded-md text-sm dept-active' : 'px-4 py-1 rounded-md text-sm text-slate-600 font-bold';
+            
             document.getElementById('dateS').value = r.s; document.getElementById('dateE').value = r.e;
             document.getElementById('summary-zh').value = r.summary; document.getElementById('summary-ja').innerText = r.summaryJa;
             const b = document.getElementById('tableBody'); b.innerHTML = '';
