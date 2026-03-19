@@ -1,0 +1,407 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <title>製造與品保工作排程系統 v4.0</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
+    <style>
+        body { font-family: 'Microsoft JhengHei', 'Meiryo', sans-serif; }
+        .sidebar { width: 240px; height: 100vh; position: fixed; left: 0; top: 0; background: #1e293b; color: white; z-index: 50; }
+        .main-content { margin-left: 240px; padding: 2rem; min-height: 100vh; }
+        .active-nav { background: #334155; border-left: 4px solid #3b82f6; }
+        .translation-box { font-size: 0.85rem; color: #2563eb; background: #f0f7ff; padding: 8px 12px; border-radius: 6px; margin-top: 6px; white-space: pre-wrap; border: 1px solid #dbeafe; }
+        .dept-active { background: #3b82f6 !important; color: white !important; font-weight: bold; }
+        textarea { resize: vertical; min-height: 80px; line-height: 1.6; width: 100%; border-radius: 8px; padding: 12px; border: 1px solid #cbd5e1; outline: none; font-weight: bold; }
+    </style>
+</head>
+<body class="bg-slate-50">
+
+    <nav class="sidebar flex flex-col shadow-xl">
+        <div class="p-6 border-b border-slate-700 text-center">
+            <h2 id="ui-main-title" class="text-xl font-bold text-blue-400">製造與品保工作排程系統</h2>
+            <p id="ui-sub-title" class="text-[10px] text-slate-400 mt-1 uppercase tracking-widest text-center">Arao Factory Management</p>
+            <div id="cloud-status" class="text-xs text-emerald-400 mt-2 font-bold h-4"></div>
+        </div>
+        <ul class="flex-1 mt-4">
+            <li><button onclick="navTo('edit')" class="nav-btn w-full text-left p-4 hover:bg-slate-700 active-nav" id="btn-edit">📅 <span id="ui-nav-edit">編輯週報/日報</span></button></li>
+            <li><button onclick="navTo('history')" class="nav-btn w-full text-left p-4 hover:bg-slate-700" id="btn-history">📚 <span id="ui-nav-history">歷史紀錄庫</span></button></li>
+            <li><button onclick="navTo('daily')" class="nav-btn w-full text-left p-4 hover:bg-slate-700" id="btn-daily">☀️ <span id="ui-nav-daily">每日工作透視</span></button></li>
+        </ul>
+        <div class="p-4 border-t border-slate-700 space-y-2">
+            <div class="grid grid-cols-2 gap-2 mb-2">
+                <button onclick="exportJSON()" class="bg-slate-600 hover:bg-slate-500 text-white py-2 rounded text-[10px] font-bold shadow-sm"><span id="ui-btn-backup">本機備份</span></button>
+                <button onclick="document.getElementById('importFile').click()" class="bg-slate-600 hover:bg-slate-500 text-white py-2 rounded text-[10px] font-bold shadow-sm"><span id="ui-btn-restore">本機還原</span></button>
+                <input type="file" id="importFile" class="hidden" accept=".json" onchange="importJSON(event)">
+            </div>
+            <button onclick="doExport()" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2 rounded text-sm font-bold shadow-md transition">📊 <span id="ui-btn-export">匯出完整 Excel</span></button>
+            <button onclick="toggleLang()" class="w-full bg-slate-700 hover:bg-slate-600 text-xs py-2 rounded border border-slate-500 transition font-bold">🌐 中文 / 日本語 切換</button>
+            <button onclick="clearAllData()" class="w-full text-[9px] text-slate-600 mt-2 hover:text-red-400 transition underline">清除本機所有快取資料</button>
+            <div class="text-[10px] text-slate-500 text-center italic mt-2">v4.0 Cloud | 蔡秉哲 開發</div>
+        </div>
+    </nav>
+
+    <main class="main-content">
+        <section id="section-edit" class="content-section">
+            <div class="flex justify-between items-center mb-6">
+                <div class="flex items-center gap-4">
+                    <h1 id="ui-edit-title" class="text-2xl font-bold text-slate-800">報表編輯</h1>
+                    <div class="flex bg-slate-200 rounded-lg p-1 shadow-inner">
+                        <button id="dept-mfg" onclick="changeDept('mfg')" class="px-4 py-1 rounded-md text-sm dept-active">製造 (Mfg)</button>
+                        <button id="dept-qa" onclick="changeDept('qa')" class="px-4 py-1 rounded-md text-sm text-slate-600 font-bold">品保 (QA)</button>
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="resetEdit()" class="bg-white border px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50">🆕 <span id="ui-btn-new">建立新週報</span></button>
+                    <button onclick="doSave()" class="bg-blue-600 text-white px-8 py-2 rounded-lg font-bold shadow-lg hover:bg-blue-700 transition">💾 <span id="ui-btn-save">儲存並同步至雲端</span></button>
+                </div>
+            </div>
+
+            <div class="bg-white p-6 rounded-xl shadow-sm mb-6 border border-slate-200 grid grid-cols-1 lg:grid-cols-12 gap-6">
+                <div class="lg:col-span-4 border-r border-slate-50 pr-4">
+                    <label id="ui-lbl-date" class="block text-sm font-bold text-slate-600 mb-2 font-bold">日期區間 (Start - End)</label>
+                    <div class="flex flex-wrap items-center gap-2">
+                        <input type="date" id="dateS" class="border p-2 rounded-lg flex-grow shadow-sm outline-none focus:border-blue-500" onchange="dirty()">
+                        <span class="text-gray-400">~</span>
+                        <input type="date" id="dateE" class="border p-2 rounded-lg flex-grow shadow-sm outline-none focus:border-blue-500" onchange="dirty()">
+                    </div>
+                </div>
+                <div class="lg:col-span-8">
+                    <label id="ui-lbl-summary" class="block text-sm font-bold text-slate-600 mb-2">本週摘要 (Enter 自動編號)</label>
+                    <textarea id="summary-zh" placeholder="1. " onkeydown="handleAutoNumber(event)" onblur="trans(this, 'summary-ja')"></textarea>
+                    <div id="summary-ja" class="translation-box italic text-blue-700">Translation...</div>
+                </div>
+            </div>
+
+            <div class="bg-white rounded-xl shadow-sm overflow-hidden border border-slate-200">
+                <table class="w-full text-left">
+                    <thead class="bg-slate-50 border-b">
+                        <tr>
+                            <th id="ui-th-date" class="p-4 font-bold text-slate-600 w-44 text-center border-r">日期</th>
+                            <th id="ui-th-name" class="p-4 font-bold text-slate-600 w-40 text-center border-r">人員</th>
+                            <th id="ui-th-task" class="p-4 font-bold text-slate-600 text-center border-r">排程內容</th>
+                            <th id="ui-th-action" class="p-4 font-bold text-slate-600 w-20 text-center">操作</th>
+                        </tr>
+                    </thead>
+                    <tbody id="tableBody"></tbody>
+                </table>
+                <button onclick="addRow()" class="w-full p-4 text-blue-600 hover:bg-blue-50 font-bold border-t transition text-center">+ <span id="ui-btn-add">新增排程項目</span></button>
+            </div>
+        </section>
+
+        <section id="section-history" class="hidden content-section"><div id="histList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div></section>
+        <section id="section-daily" class="hidden content-section">
+            <div class="mb-6 flex justify-between">
+                <h1 id="ui-daily-title" class="text-2xl font-bold text-slate-800">每日工作透視</h1>
+                <input type="date" id="dailyDate" class="border p-2 rounded shadow-sm focus:border-blue-500" onchange="renderDaily()">
+            </div>
+            <div id="dailyContent" class="space-y-8"></div>
+        </section>
+    </main>
+
+    <script>
+        // ==========================================
+        // 🔥 雲端協作設定區 🔥
+        // 請將下方引號內的文字替換為您的 Google Apps Script 網址
+        const GAS_URL = "https://script.google.com/macros/s/AKfycbyCqkSEg2FfwdF4yFjZToMaRMbwpRu1P6z0E4uLLNzaxzyT_g4lPjI5RdqyIUn3Kqhy/exec"; 
+        // ==========================================
+
+        let db = JSON.parse(localStorage.getItem('fb_arao_final_v32_db')) || {};
+        let currentDept = 'mfg', isChanged = false, currentLang = 'zh';
+
+        const i18n = {
+            zh: { mainTitle: "製造與品保工作排程系統", subTitle: "日本荒尾分工廠專用", navEdit: "編輯週報/日報", navHistory: "歷史紀錄庫", navDaily: "每日工作透視", editTitle: "報表編輯", btnNew: "建立新週報", btnSave: "儲存並同步至雲端", btnExport: "匯出完整 Excel", btnBackup: "本機備份", btnRestore: "本機還原", lblDate: "日期區間 (Start - End)", lblSummary: "本週摘要 (Enter 自動編號)", thDate: "日期", thName: "人員", thTask: "排程內容", thAction: "操作", btnAdd: "新增排程項目", historyTitle: "歷史紀錄庫", dailyTitle: "每日工作透視", warn: "尚未儲存，確定要切換嗎？", saveOk: "雲端同步成功！最新資料已匯入本機。" },
+            ja: { mainTitle: "製造・品質保証スケジュール", subTitle: "日本荒尾分工場専用", navEdit: "週報/日報の編集", navHistory: "履歴ログ", navDaily: "日次ビュー", editTitle: "レポート編集", btnNew: "新規作成", btnSave: "クラウドに保存して同期", btnExport: "Excel出力", btnBackup: "ローカル預金", btnRestore: "ローカル修復", lblDate: "日付期間 (Start - End)", lblSummary: "今週の概要 (自動番号)", thDate: "日付", thName: "担当者", thTask: "業務内容", thAction: "操作", btnAdd: "項目を追加", historyTitle: "履歴ログ", dailyTitle: "日次ビュー", warn: "保存されていない変更があります。", saveOk: "クラウドと同期しました！" }
+        };
+
+        async function syncFromCloud() {
+            if(GAS_URL.includes("在此貼上") || GAS_URL.trim() === "") {
+                document.getElementById('cloud-status').innerText = "⚠️ 未設定雲端連線，目前為本機離線模式";
+                return;
+            }
+            try {
+                document.getElementById('cloud-status').innerText = "🔄 正在與雲端背景同步...";
+                const res = await fetch(GAS_URL);
+                const cloudDb = await res.json();
+                if(cloudDb && Object.keys(cloudDb).length > 0) {
+                    db = { ...db, ...cloudDb };
+                    localStorage.setItem('fb_arao_final_v32_db', JSON.stringify(db));
+                }
+                document.getElementById('cloud-status').innerText = "☁️ 雲端同步完成 (Online)";
+                setTimeout(() => document.getElementById('cloud-status').innerText = "", 5000);
+            } catch(e) {
+                console.error(e);
+                document.getElementById('cloud-status').innerHTML = "<span class='text-red-400'>⚠️ 雲端不穩定，目前使用本機紀錄</span>";
+            }
+        }
+        
+        // 啟動時自動同步
+        window.addEventListener('load', syncFromCloud);
+
+        function handleAutoNumber(e) {
+            isChanged = true;
+            if (e.key === 'Enter') {
+                const el = e.target;
+                const pos = el.selectionStart;
+                const lines = el.value.substring(0, pos).split('\n');
+                const lastLine = lines[lines.length - 1];
+                const match = lastLine.match(/^(\d+)([\.\、\s]+)/);
+                if (match) {
+                    e.preventDefault();
+                    const nextNum = parseInt(match[1]) + 1;
+                    const ins = "\n" + nextNum + match[2];
+                    el.value = el.value.substring(0, pos) + ins + el.value.substring(pos);
+                    el.selectionStart = el.selectionEnd = pos + ins.length;
+                }
+            }
+        }
+
+        async function trans(el, tid) {
+            const txt = el.value.trim();
+            const target = document.getElementById(tid);
+            if (!txt) return;
+            const isJp = /[\u3040-\u309F\u30A0-\u30FF]/.test(txt);
+            target.innerText = "...";
+            try {
+                const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${isJp?'ja':'zh-TW'}&tl=${isJp?'zh-TW':'ja'}&dt=t&q=${encodeURIComponent(txt)}`);
+                const json = await res.json();
+                target.innerText = json[0].map(p => p[0]).join('');
+            } catch (e) { target.innerText = "Error"; }
+        }
+
+        function toggleLang() {
+            currentLang = (currentLang === 'zh') ? 'ja' : 'zh';
+            const L = i18n[currentLang];
+            document.getElementById('ui-main-title').innerText = L.mainTitle;
+            document.getElementById('ui-sub-title').innerText = L.subTitle;
+            document.getElementById('ui-nav-edit').innerText = L.navEdit;
+            document.getElementById('ui-nav-history').innerText = L.navHistory;
+            document.getElementById('ui-nav-daily').innerText = L.navDaily;
+            document.getElementById('ui-edit-title').innerText = L.editTitle;
+            document.getElementById('ui-btn-new').innerText = L.btnNew;
+            document.getElementById('ui-btn-save').innerText = L.btnSave;
+            document.getElementById('ui-btn-export').innerText = L.btnExport;
+            document.getElementById('ui-btn-backup').innerText = L.btnBackup;
+            document.getElementById('ui-btn-restore').innerText = L.btnRestore;
+            document.getElementById('ui-lbl-date').innerText = L.lblDate;
+            document.getElementById('ui-lbl-summary').innerText = L.lblSummary;
+            document.getElementById('ui-th-date').innerText = L.thDate;
+            document.getElementById('ui-th-name').innerText = L.thName;
+            document.getElementById('ui-th-task').innerText = L.thTask;
+            document.getElementById('ui-th-action').innerText = L.thAction;
+            document.getElementById('ui-btn-add').innerText = L.btnAdd;
+            if(document.getElementById('ui-history-title')) document.getElementById('ui-history-title').innerText = L.historyTitle;
+            if(document.getElementById('ui-daily-title')) document.getElementById('ui-daily-title').innerText = L.dailyTitle;
+        }
+
+        async function doSave() {
+            const s = document.getElementById('dateS').value, e = document.getElementById('dateE').value;
+            if(!s || !e) return alert("Select Dates!");
+            const id = `${currentDept}_${s}_${e}`;
+            const items = [];
+            document.querySelectorAll('#tableBody tr').forEach(tr => {
+                items.push({ date: tr.querySelector('.item-date').value, name: tr.querySelector('.item-name').value, zh: tr.querySelector('.item-zh').value, ja: tr.querySelector('.translation-box').innerText });
+            });
+            const newData = { dept: currentDept, s, e, summary: document.getElementById('summary-zh').value, summaryJa: document.getElementById('summary-ja').innerText, items, updated: new Date().toLocaleString() };
+            
+            // 先存入本機
+            db[id] = newData;
+
+            if(!GAS_URL.includes("在此貼上") && GAS_URL.trim() !== "") {
+                try {
+                    document.getElementById('cloud-status').innerText = "⬆️ 儲存並同步至雲端中...";
+                    const res = await fetch(GAS_URL, {
+                        method: 'POST',
+                        body: JSON.stringify({ id: id, data: newData }),
+                        headers: { "Content-Type": "text/plain;charset=utf-8" }
+                    });
+                    const result = await res.json();
+                    if(result.status === "success" && result.db) {
+                        db = result.db; // 以雲端最新的全局狀態覆寫
+                        document.getElementById('cloud-status').innerText = "☁️ 雲端儲存與同步成功！";
+                        setTimeout(() => document.getElementById('cloud-status').innerText = "", 3000);
+                        alert(i18n[currentLang].saveOk);
+                    }
+                } catch(e) {
+                    console.error(e);
+                    alert("⚠️ 雲端儲存失敗，已暫時轉存於本機記憶體。如果網路恢復，重整後會更新。");
+                }
+            } else {
+                alert("💡 若要啟用無縫多人協作，請參閱設定指南填寫雲端網址，目前資料僅存於本機。");
+            }
+
+            localStorage.setItem('fb_arao_final_v32_db', JSON.stringify(db));
+            isChanged = false;
+        }
+
+        function doExport() {
+            const wb = XLSX.utils.book_new();
+            const borderStyle = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
+            Object.values(db).forEach(r => {
+                const sn = `${r.s}~${r.e}(${r.dept==='mfg'?'製造':'品保'})`.substring(0,31);
+                const rawData = [["日期", "人員", "內容(中)", "內容(日)"]];
+                r.items.forEach(i => rawData.push([i.date, i.name, i.zh, i.ja]));
+                const ws = XLSX.utils.aoa_to_sheet(rawData);
+                ws['!cols'] = [{ wch: 15 }, { wch: 12 }, { wch: 55 }, { wch: 55 }];
+                const range = XLSX.utils.decode_range(ws['!ref']);
+                for (let row = range.s.r; row <= range.e.r; row++) {
+                    for (let col = range.s.c; col <= range.e.c; col++) {
+                        const cellRef = XLSX.utils.encode_cell({ r: row, c: col });
+                        if (!ws[cellRef]) continue;
+                        ws[cellRef].s = {
+                            alignment: { vertical: "center", horizontal: (col < 2) ? "center" : "left", wrapText: true },
+                            border: borderStyle, font: { name: "新細明體", sz: 11 }
+                        };
+                        if (row === 0) {
+                            ws[cellRef].s.font.bold = true;
+                            ws[cellRef].s.fill = { fgColor: { rgb: "F2F2F2" } };
+                            ws[cellRef].s.alignment.horizontal = "center";
+                        }
+                    }
+                }
+                XLSX.utils.book_append_sheet(wb, ws, sn);
+            });
+            XLSX.writeFile(wb, "Arao_Report.xlsx");
+        }
+
+        function exportJSON() {
+            const blob = new Blob([JSON.stringify(db, null, 2)], { type: "application/json" });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Arao_Data_Backup_${new Date().toLocaleDateString()}.json`;
+            a.click();
+        }
+
+        function importJSON(event) {
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const imported = JSON.parse(e.target.result);
+                    let count = 0;
+                    for (let key in imported) {
+                        db[key] = imported[key];
+                        count++;
+                    }
+                    localStorage.setItem('fb_arao_final_v32_db', JSON.stringify(db));
+                    alert(`成功從檔案合併 ${count} 筆報表紀錄至本機！(不會自動上傳至雲端)`);
+                    if(document.getElementById('section-history').classList.contains('hidden') === false) renderHistory();
+                } catch (err) { alert("檔案解析錯誤！"); }
+            };
+            reader.readAsText(event.target.files[0]);
+        }
+
+        function clearAllData() {
+            if(confirm("這將會永久刪除本機瀏覽器中的所有週報快取，確定嗎？ (不影響雲端與他人檔案)")) {
+                db = {};
+                localStorage.removeItem('fb_arao_final_v32_db');
+                alert("已全部清除。");
+                location.reload();
+            }
+        }
+
+        function renderDaily() {
+            const date = document.getElementById('dailyDate').value;
+            const content = document.getElementById('dailyContent');
+            if(!date) return; content.innerHTML = '';
+            ['mfg', 'qa'].forEach(dept => {
+                const name = dept === 'mfg' ? '製造部 (Manufacturing)' : '品保部 (QA)';
+                let html = `<div class="bg-white rounded-xl shadow p-6 border-t-8 ${dept==='mfg'?'border-blue-600':'border-purple-600'}">`;
+                html += `<h2 class="text-xl font-black text-slate-800 mb-4">${name}</h2>`;
+                let found = false;
+                Object.values(db).filter(r => r.dept === dept).forEach(r => {
+                    const todayItems = r.items.filter(i => i.date === date);
+                    if(todayItems.length > 0) {
+                        found = true;
+                        html += `<div class="mb-4 bg-slate-50 p-4 rounded border font-bold text-xs text-slate-400">來源期別: ${r.s} ~ ${r.e}</div>`;
+                        todayItems.forEach(item => {
+                            html += `<div class="mb-6"><div class="font-bold text-blue-800 text-lg border-b pb-1">👤 ${item.name}</div><div class="text-slate-700 whitespace-pre-wrap mt-2 font-bold">${item.zh}</div><div class="mt-2 text-blue-500 italic text-sm p-2 bg-blue-50 rounded">${item.ja}</div></div>`;
+                        });
+                    }
+                });
+                if(!found) html += `<p class="text-slate-300 italic text-center py-10">NO DATA / 記録なし</p>`;
+                content.innerHTML += html + `</div>`;
+            });
+        }
+
+        function addRow(data = { date: '', name: '', zh: '', ja: '' }) {
+            const tbody = document.getElementById('tableBody');
+            const rid = 'r' + Math.random().toString(36).substr(2, 5);
+            const tr = document.createElement('tr');
+            tr.className = "border-b hover:bg-slate-50 transition";
+            tr.innerHTML = `
+                <td class="p-3 align-top text-center border-r"><input type="date" class="w-full p-2 border rounded item-date text-sm" value="${data.date}" onchange="dirty()"></td>
+                <td class="p-3 align-top text-center border-r"><input type="text" class="w-full p-2 border rounded item-name text-sm text-center font-bold" value="${data.name}" placeholder="姓名"></td>
+                <td class="p-3 border-r">
+                    <textarea class="item-zh text-sm font-bold" onkeydown="handleAutoNumber(event)" onblur="trans(this, '${rid}-t')">${data.zh}</textarea>
+                    <div id="${rid}-t" class="translation-box">${data.ja || '...'}</div>
+                </td>
+                <td class="p-3 text-center align-top"><button onclick="this.closest('tr').remove(); dirty();" class="text-red-400 font-bold mt-2">✕</button></td>
+            `;
+            tbody.appendChild(tr);
+        }
+
+        async function navTo(id) {
+            if (isChanged && !confirm(i18n[currentLang].warn)) return;
+            document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
+            document.getElementById('section-' + id).classList.remove('hidden');
+            document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active-nav'));
+            document.getElementById('btn-' + id).classList.add('active-nav');
+            
+            if(id === 'history') {
+                if(!GAS_URL.includes("在此貼上") && GAS_URL.trim() !== "") {
+                    document.getElementById('histList').innerHTML = "<p class='text-slate-400 text-center py-10 w-full'>🔄 從雲端獲取最新紀錄中...</p>";
+                    await syncFromCloud();
+                }
+                renderHistory();
+            } else if (id === 'daily') {
+                if(!GAS_URL.includes("在此貼上") && GAS_URL.trim() !== "") {
+                    await syncFromCloud();
+                }
+                const dateVal = document.getElementById('dailyDate') ? document.getElementById('dailyDate').value : '';
+                if(dateVal) renderDaily();
+            }
+            
+            isChanged = false;
+        }
+
+        function changeDept(dept) {
+            if (isChanged && !confirm(i18n[currentLang].warn)) return;
+            currentDept = dept;
+            document.getElementById('dept-mfg').className = (dept === 'mfg') ? 'px-4 py-1 rounded-md text-sm dept-active' : 'px-4 py-1 rounded-md text-sm text-slate-600 font-bold';
+            document.getElementById('dept-qa').className = (dept === 'qa') ? 'px-4 py-1 rounded-md text-sm dept-active' : 'px-4 py-1 rounded-md text-sm text-slate-600 font-bold';
+            resetEdit(false);
+        }
+
+        function renderHistory() {
+            const list = document.getElementById('histList'); list.innerHTML = '';
+            Object.keys(db).sort().reverse().forEach(id => {
+                const r = db[id]; const card = document.createElement('div');
+                card.className = "bg-white p-5 rounded-xl border border-l-4 shadow-sm hover:shadow-md cursor-pointer " + (r.dept==='mfg'?'border-l-blue-500':'border-l-purple-500');
+                card.innerHTML = `<div class="font-bold text-slate-800">${r.dept.toUpperCase()} | ${r.s} ~ ${r.e}</div><div class="text-[10px] text-slate-400 mt-1">${r.updated}</div><p class="text-xs text-slate-500 mt-2 truncate italic">${r.summary.substring(0,50)}</p>`;
+                card.onclick = () => { if(isChanged && !confirm(i18n[currentLang].warn)) return; loadRecord(id); };
+                list.appendChild(card);
+            });
+        }
+
+        function loadRecord(id) {
+            const r = db[id]; currentDept = r.dept;
+            document.getElementById('dateS').value = r.s; document.getElementById('dateE').value = r.e;
+            document.getElementById('summary-zh').value = r.summary; document.getElementById('summary-ja').innerText = r.summaryJa;
+            const b = document.getElementById('tableBody'); b.innerHTML = '';
+            r.items.forEach(i => addRow(i)); navTo('edit'); isChanged = false;
+        }
+
+        function resetEdit(ask=true) {
+            if(ask && isChanged && !confirm(i18n[currentLang].warn)) return;
+            document.getElementById('dateS').value = ''; document.getElementById('dateE').value = '';
+            document.getElementById('summary-zh').value = ''; document.getElementById('summary-ja').innerText = '...';
+            document.getElementById('tableBody').innerHTML = ''; addRow(); isChanged = false;
+        }
+
+        function dirty() { isChanged = true; }
+        addRow();
+        window.onbeforeunload = function() { if(isChanged) return i18n[currentLang].warn; };
+    </script>
+</body>
+</html>
