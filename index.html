@@ -155,12 +155,12 @@
             } catch(e) {
                 console.error(e);
                 document.getElementById('cloud-status').innerHTML = "<span class='text-red-400'>⚠️ 雲端連線失敗</span>";
-                if(force) alert("⚠️ 連線失敗，無法同步最新資料。");
+                if(force === true) alert("⚠️ 連線失敗，無法同步最新資料。\nError: " + e.message);
             }
         }
         
         // 啟動時自動同步
-        window.addEventListener('load', syncFromCloud);
+        window.addEventListener('load', () => syncFromCloud(false));
 
         function handleAutoNumber(e) {
             isChanged = true;
@@ -298,7 +298,7 @@
             const wb = XLSX.utils.book_new();
             const borderStyle = { top: { style: "thin" }, bottom: { style: "thin" }, left: { style: "thin" }, right: { style: "thin" } };
             Object.values(db).forEach(r => {
-                if(r.deleted) return;
+                if(r.deleted || !r.dept) return;
                 const sn = `${r.s}~${r.e}(${r.dept==='mfg'?'製造':'品保'})`.substring(0,31);
                 const rawData = [["日期", "人員", "內容(中)", "內容(日)"]];
                 r.items.forEach(i => rawData.push([i.date, i.name, i.zh, i.ja]));
@@ -431,7 +431,7 @@
             const list = document.getElementById('histList'); list.innerHTML = '';
             Object.keys(db).sort().reverse().forEach(id => {
                 const r = db[id]; 
-                if(r.deleted) return; 
+                if(r.deleted || !r.dept) return; 
                 const card = document.createElement('div');
                 card.className = "relative bg-white p-5 rounded-xl border border-l-4 shadow-sm hover:shadow-md cursor-pointer " + (r.dept==='mfg'?'border-l-blue-500':'border-l-purple-500');
                 card.innerHTML = `
