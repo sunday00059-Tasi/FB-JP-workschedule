@@ -45,6 +45,13 @@
 
     <main class="main-content">
         <section id="section-edit" class="content-section">
+            <div id="readonly-banner" class="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-xl mb-6 flex items-center gap-3 hidden">
+                <span class="text-xl">⚠️</span>
+                <div>
+                    <div class="font-bold text-sm" id="ui-readonly-title">唯讀模式 (Read-only)</div>
+                    <div class="text-xs" id="ui-readonly-msg">目前已有其他使用者正在編輯此報表...</div>
+                </div>
+            </div>
             <div class="flex justify-between items-center mb-6">
                 <div class="flex items-center gap-4">
                     <h1 id="ui-edit-title" class="text-2xl font-bold text-slate-800">報表編輯</h1>
@@ -64,9 +71,9 @@
                 <div class="lg:col-span-4 border-r border-slate-50 pr-4">
                     <label id="ui-lbl-date" class="block text-sm font-bold text-slate-600 mb-2 font-bold">日期區間 (Start - End)</label>
                     <div class="flex flex-wrap items-center gap-2">
-                        <input type="date" id="dateS" class="border p-2 rounded-lg flex-grow shadow-sm outline-none focus:border-blue-500" onchange="dirty()">
+                        <input type="date" id="dateS" class="border p-2 rounded-lg flex-grow shadow-sm outline-none focus:border-blue-500" onchange="checkConflict(); dirty()">
                         <span class="text-gray-400">~</span>
-                        <input type="date" id="dateE" class="border p-2 rounded-lg flex-grow shadow-sm outline-none focus:border-blue-500" onchange="dirty()">
+                        <input type="date" id="dateE" class="border p-2 rounded-lg flex-grow shadow-sm outline-none focus:border-blue-500" onchange="checkConflict(); dirty()">
                     </div>
                 </div>
                 <div class="lg:col-span-8">
@@ -112,7 +119,7 @@
         let db = JSON.parse(localStorage.getItem('fb_arao_final_v32_db')) || {};
         let currentDept = 'mfg', isChanged = false, currentLang = 'zh';
         let userName = localStorage.getItem('fb_arao_user') || "";
-        let hbTimer = null, currentEditId = null;
+        let hbTimer = null, syncTimerId = null, currentEditId = null;
 
         document.getElementById('user-name').value = userName;
         function saveUserName() { 
@@ -124,8 +131,8 @@
         }
 
         const i18n = {
-            zh: { mainTitle: "Feedback Technology Japan<br>製造工作排程系統", subTitle: "日本荒尾分工廠專用", navEdit: "編輯週報/日報", navHistory: "歷史紀錄庫", navDaily: "每日工作透視", editTitle: "報表編輯", btnNew: "建立新週報", btnSave: "儲存並同步至雲端", btnExport: "匯出完整 Excel", btnForceSync: "強制更新雲端同步", lblDate: "日期區間 (Start - End)", lblSummary: "本週摘要 (Enter 自動編號)", thDate: "日期", thName: "人員", thTask: "排程內容", thAction: "操作", btnAdd: "新增排程項目", historyTitle: "歷史紀錄庫", dailyTitle: "每日工作透視", warn: "尚未儲存，確定要切換嗎？", saveOk: "雲端同步成功！最新資料已匯入本機。", lblUser: "使用者姓名 Setup", userWarn: "請先輸入您的姓名再進行編輯！", conflictWarn: "⚠️ 偵測到衝突！\n\n雲端已有更晚的儲存紀錄 ({time})，您的版本可能較舊。\n確定要覆蓋雲端資料嗎？\n(建議取消後，先按強制更新再手動合併)", presenceMsg: "⚠️ {user} 正在編輯此報表..." },
-            ja: { mainTitle: "Feedback Technology Japan<br>製造スケジュール", subTitle: "日本荒尾分工場専用", navEdit: "週報/日報の編集", navHistory: "履歴ログ", navDaily: "日次ビュー", editTitle: "レポート編集", btnNew: "新規作成", btnSave: "クラウドに保存して同期", btnExport: "Excel出力", btnForceSync: "クラウドと強制同期", lblDate: "日付期間 (Start - End)", lblSummary: "今週の概要 (自動番号)", thDate: "日付", thName: "担当者", thTask: "業務内容", thAction: "操作", btnAdd: "項目を追加", historyTitle: "履歴ログ", dailyTitle: "日次ビュー", warn: "保存されていない変更があります。", saveOk: "クラウドと同期しました！", lblUser: "使用者の名前 Setup", userWarn: "編集する前に、お名前を入力してください！", conflictWarn: "⚠️ 競合が検出されました！\n\nクラウドに新しい記録 ({time}) があります。現在のバージョンは古い可能性があります。\n上書きしますか？\n(一度キャンセルし、強制同期してから手動でマージすることをお勧めします)", presenceMsg: "⚠️ {user} がこのレポートを編集しています..." }
+            zh: { mainTitle: "Feedback Technology Japan<br>製造工作排程系統", subTitle: "日本荒尾分工廠專用", navEdit: "編輯週報/日報", navHistory: "歷史紀錄庫", navDaily: "每日工作透視", editTitle: "報表編輯", btnNew: "建立新週報", btnSave: "儲存並同步至雲端", btnExport: "匯出完整 Excel", btnForceSync: "強制更新雲端同步", lblDate: "日期區間 (Start - End)", lblSummary: "本週摘要 (Enter 自動編號)", thDate: "日期", thName: "人員", thTask: "排程內容", thAction: "操作", btnAdd: "新增排程項目", historyTitle: "歷史紀錄庫", dailyTitle: "每日工作透視", warn: "尚未儲存，確定要切換嗎？", saveOk: "雲端同步成功！最新資料已匯入本機。", lblUser: "使用者姓名 Setup", userWarn: "請先輸入您的姓名再進行編輯！", lockWarn: "⚠️ 禁止儲存！{user} 正在編輯此報表，請稍後再試。", outdatedWarn: "⚠️ 禁止儲存！雲端已有更新版本 ({time})，請先點擊左側「強制更新雲端同步」後再進行儲存。", presenceMsg: "⚠️ {user} 正在編輯此報表...", readonlyTitle: "唯讀模式 (Read-only)", readonlyMsg: "目前 {user} 正在編輯此報表，為了避免衝突，您現在只能檢視內容，無法進行修改或儲存。", readonlyAlert: "⚠️ 注意：{user} 正在編輯中，目前為唯讀模式。", unlockAlert: "🎉 {user} 已編輯完成並離開。\n頁面將自動更新至最新狀態，您可以開始您的編輯了。" },
+            ja: { mainTitle: "Feedback Technology Japan<br>製造スケジュール", subTitle: "日本荒尾分工場専用", navEdit: "週報/日報の編集", navHistory: "履歴ログ", navDaily: "日次ビュー", editTitle: "レポート編集", btnNew: "新規作成", btnSave: "クラウドに保存して同期", btnExport: "Excel出力", btnForceSync: "クラウドと強制同期", lblDate: "日付期間 (Start - End)", lblSummary: "今週の概要 (自動番号)", thDate: "日付", thName: "担当者", thTask: "業務内容", thAction: "操作", btnAdd: "項目を追加", historyTitle: "履歴ログ", dailyTitle: "日次ビュー", warn: "保存されていない変更があります。", saveOk: "クラウドと同期しました！", lblUser: "使用者の名前 Setup", userWarn: "編集する前に、お名前を入力してください！", lockWarn: "⚠️ 保存は禁止されています！{user} がこのレポートを編集しています。後でもう一度お試しください。", outdatedWarn: "⚠️ 保存は禁止されています！クラウドに新しいバージョン ({time}) があります。保存する前に「クラウドと強制同期」をクリックしてください。", presenceMsg: "⚠️ {user} がこのレポートを編集しています...", readonlyTitle: "読み取り専用モード (Read-only)", readonlyMsg: "現在 {user} がこのレポートを編集しています。衝突を避けるため、現在は表示のみ可能で、編集や保存はできません。", readonlyAlert: "⚠️ 注意：{user} が編集中のため、現在は読み取り専用モードです。", unlockAlert: "🎉 {user} が編集を終了しました。\n最新のデータに更新され、編集が可能になります。" }
         };
 
         async function syncFromCloud(force = false) {
@@ -150,8 +157,14 @@
                 if(hList && !hList.classList.contains('hidden')) renderHistory();
                 if(dList && !dList.classList.contains('hidden')) renderDaily();
                 
-                if(force) alert("✅ 已成功從雲端更新最新資料！");
+                if(force === true) {
+                    alert("✅ 已成功從雲端更新最新資料！");
+                    if(currentEditId && !document.getElementById('section-edit').classList.contains('hidden')) {
+                         loadRecord(currentEditId); 
+                    }
+                }
                 updatePresenceUI();
+                scheduleNextSync(); // 排程下一次隨機同步
             } catch(e) {
                 console.error(e);
                 document.getElementById('cloud-status').innerHTML = "<span class='text-red-400'>⚠️ 雲端連線失敗</span>";
@@ -216,29 +229,117 @@
             if(document.getElementById('ui-history-title')) document.getElementById('ui-history-title').innerText = L.historyTitle;
             if(document.getElementById('ui-daily-title')) document.getElementById('ui-daily-title').innerText = L.dailyTitle;
             if(document.getElementById('ui-lbl-user')) document.getElementById('ui-lbl-user').innerText = L.lblUser;
+            if(document.getElementById('ui-readonly-title')) document.getElementById('ui-readonly-title').innerText = L.readonlyTitle;
         }
 
+        let lastLockUser = "";
+        function setEditorReadOnly(ro, lockingUser = "") {
+            if(lockingUser) lastLockUser = lockingUser;
+            const section = document.getElementById('section-edit');
+            const inputs = section.querySelectorAll('input, textarea, button:not(#btn-new)');
+            inputs.forEach(el => {
+                if(el.id === 'dept-mfg' || el.id === 'dept-qa') return;
+                el.disabled = ro;
+                if(ro) el.classList.add('opacity-50', 'cursor-not-allowed');
+                else el.classList.remove('opacity-50', 'cursor-not-allowed');
+            });
+            const banner = document.getElementById('readonly-banner');
+            if(ro) {
+                banner.classList.remove('hidden');
+                document.getElementById('ui-readonly-msg').innerText = i18n[currentLang].readonlyMsg.replace('{user}', lockingUser);
+            } else {
+                banner.classList.add('hidden');
+            }
+        }
+
+        let myJoinedAt = null;
         async function sendHeartbeat() {
             if(!userName || !currentEditId || GAS_URL.includes("在此貼上")) return;
+            if(!myJoinedAt) myJoinedAt = Date.now();
             try {
                 fetch(GAS_URL, {
                     method: 'POST',
-                    body: JSON.stringify({ id: 'presence_' + currentEditId, data: { user: userName, time: Date.now() } }),
+                    body: JSON.stringify({ 
+                        id: `presence_${currentEditId}_${userName}`, 
+                        data: { user: userName, joinedAt: myJoinedAt, time: Date.now() } 
+                    }),
                     headers: { "Content-Type": "text/plain;charset=utf-8" }
                 });
             } catch(e) {}
         }
 
+        async function releaseLock(id) {
+            if(!id || !GAS_URL || GAS_URL.includes("在此貼上")) return;
+            try {
+                // 發送空資料立刻釋放自己的雲端佔位
+                fetch(GAS_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ id: `presence_${id}_${userName}`, data: { user: "", time: 0 } }),
+                    headers: { "Content-Type": "text/plain;charset=utf-8" }
+                });
+            } catch(e) {}
+            myJoinedAt = null; // 清除自己的加入時間
+        }
+
         function updatePresenceUI() {
             const msg = document.getElementById('presence-msg');
+            const banner = document.getElementById('readonly-banner');
             if(!currentEditId || !msg) return;
-            const p = db['presence_' + currentEditId];
-            if(p && p.user !== userName && (Date.now() - p.time < 60000)) {
-                msg.innerText = i18n[currentLang].presenceMsg.replace('{user}', p.user);
-                msg.classList.remove('hidden');
+            
+            const wasReadOnly = !banner.classList.contains('hidden');
+            
+            // 找出所有關於此報表的活躍成員
+            const prefix = `presence_${currentEditId}_`;
+            const members = Object.keys(db)
+                .filter(k => k.startsWith(prefix))
+                .map(k => db[k])
+                .filter(m => m && m.user && (Date.now() - m.time < 60000))
+                .sort((a, b) => (a.joinedAt || 0) - (b.joinedAt || 0));
+
+            if(members.length > 0) {
+                const editor = members[0]; // 最早進場的人是編輯者
+                if(editor.user !== userName) {
+                    // 我不是最優先的
+                    msg.innerText = i18n[currentLang].presenceMsg.replace('{user}', editor.user);
+                    msg.classList.remove('hidden');
+                    if(!wasReadOnly) setEditorReadOnly(true, editor.user);
+                } else {
+                    // 我是最優先的 (或是只有我一個)
+                    msg.classList.add('hidden');
+                    if(wasReadOnly) {
+                        setEditorReadOnly(false);
+                        alert(i18n[currentLang].unlockAlert.replace('{user}', lastLockUser));
+                        loadRecord(currentEditId, false);
+                    }
+                }
             } else {
                 msg.classList.add('hidden');
+                if(wasReadOnly) setEditorReadOnly(false);
             }
+        }
+
+        function scheduleNextSync() {
+            if(!syncTimerId && !document.getElementById('section-edit').classList.contains('hidden')) {
+                const delay = 15000 + Math.random() * 10000; // 15s~25s 隨機抖動
+                syncTimerId = setTimeout(async () => {
+                    syncTimerId = null;
+                    await syncFromCloud();
+                }, delay);
+            }
+        }
+
+        function stopSyncTimer() {
+            if(syncTimerId) {
+                clearTimeout(syncTimerId);
+                syncTimerId = null;
+            }
+        }
+
+        async function checkConflict() {
+            const s = document.getElementById('dateS').value, e = document.getElementById('dateE').value;
+            if(!s || !e) return;
+            currentEditId = `${currentDept}_${s}_${e}`;
+            await syncFromCloud(); // 立即同步檢查
         }
 
         async function doSave() {
@@ -246,15 +347,25 @@
             if(!s || !e) return alert("Select Dates!");
             const id = `${currentDept}_${s}_${e}`;
             
-            // 衝突檢測
+            // 嚴格衝突與權限檢測
             if(!GAS_URL.includes("在此貼上") && GAS_URL.trim() !== "") {
                 try {
                     const res = await fetch(GAS_URL);
                     const cloud = await res.json();
-                    if(cloud[id] && db[id] && cloud[id].updated !== db[id].updated) {
-                        if(!confirm(i18n[currentLang].conflictWarn.replace('{time}', cloud[id].updated))) return;
+                    
+                    // 1. 檢查是否有人正在編輯
+                    const p = cloud['presence_' + currentEditId];
+                    if(p && p.user !== userName && (Date.now() - p.time < 60000)) {
+                        return alert(i18n[currentLang].lockWarn.replace('{user}', p.user));
                     }
-                } catch(e) {}
+
+                    // 2. 檢查版本衝突
+                    if(cloud[id] && db[id] && cloud[id].updated !== db[id].updated) {
+                        return alert(i18n[currentLang].outdatedWarn.replace('{time}', cloud[id].updated));
+                    }
+                } catch(e) {
+                    console.error("Conflict check failed:", e);
+                }
             }
 
             const items = [];
@@ -376,13 +487,20 @@
         }
 
         async function navTo(id) {
+            const currentView = Array.from(document.querySelectorAll('.content-section')).find(s => !s.classList.contains('hidden'))?.id;
             if (isChanged && !confirm(i18n[currentLang].warn)) return;
+            
+            // 如果離開編輯模式，主動釋放鎖定
+            if(currentView === 'section-edit' && id !== 'edit' && currentEditId) {
+                releaseLock(currentEditId);
+            }
             if (id === 'edit' && !userName) {
                 const input = document.getElementById('user-name');
                 input.classList.add('border-red-500', 'bg-red-50');
                 input.focus();
                 return alert(i18n[currentLang].userWarn);
             }
+            if (id === 'edit') setEditorReadOnly(false); // 預設解除，後面讀取紀錄會再檢查
             document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
             document.getElementById('section-' + id).classList.remove('hidden');
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active-nav'));
@@ -410,9 +528,12 @@
                     if(!hbTimer) hbTimer = setInterval(sendHeartbeat, 30000);
                 }
                 updatePresenceUI();
+                stopSyncTimer();
+                scheduleNextSync(); // 啟動背景隨機同步
             } else {
                 currentEditId = null;
                 clearInterval(hbTimer); hbTimer = null;
+                stopSyncTimer(); // 停止同步
                 document.getElementById('presence-msg').classList.add('hidden');
             }
             
@@ -472,13 +593,26 @@
             renderHistory();
         }
 
-        function loadRecord(id) {
+        async function loadRecord(id, autoSync = true) {
             if(!userName) {
                 const input = document.getElementById('user-name');
                 input.classList.add('border-red-500', 'bg-red-50');
                 input.focus();
                 return alert(i18n[currentLang].userWarn);
             }
+            
+            // 檢查鎖定 (FCFS 下，進場就同步取得名單)
+            if(autoSync) await syncFromCloud();
+            updatePresenceUI(); 
+            
+            const banner = document.getElementById('readonly-banner');
+            if(!banner.classList.contains('hidden')) {
+                // 如果進場後發現自己不是第一順位，提示唯讀
+                alert(i18n[currentLang].readonlyAlert.replace('{user}', lastLockUser));
+            } else {
+                sendHeartbeat(); // 只有順利成為第一順位才發送
+            }
+
             const r = db[id]; currentDept = r.dept;
             
             // 修正：強制更新畫面上的「製造/品保」藍底按鈕，防止出現「點進 QA 紀錄，畫面上方卻亮著 MFG，導致使用者以為壞掉或是將新寫的內容又誤存回 QA」
@@ -497,9 +631,11 @@
 
         function resetEdit(ask=true) {
             if(ask && isChanged && !confirm(i18n[currentLang].warn)) return;
+            if(currentEditId) releaseLock(currentEditId); // 建立新週報前，釋放舊鎖定
             document.getElementById('dateS').value = ''; document.getElementById('dateE').value = '';
             document.getElementById('summary-zh').value = ''; document.getElementById('summary-ja').innerText = '...';
             document.getElementById('tableBody').innerHTML = ''; addRow(); isChanged = false;
+            currentEditId = null; setEditorReadOnly(false);
         }
 
         function dirty() { isChanged = true; }
