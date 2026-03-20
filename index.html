@@ -23,6 +23,10 @@
             <p id="ui-sub-title" class="text-[10px] text-slate-400 mt-1 uppercase tracking-widest text-center">Arao Factory Management</p>
             <div id="cloud-status" class="text-xs text-emerald-400 mt-2 font-bold h-4"></div>
         </div>
+        <div class="px-4 py-2 border-b border-slate-700 bg-slate-800/50">
+            <label id="ui-lbl-user" class="text-[9px] text-slate-500 uppercase font-bold">使用者姓名 Setup</label>
+            <input type="text" id="user-name" class="w-full bg-slate-700 text-white text-xs p-1 rounded border border-slate-600 outline-none focus:border-blue-500 transition-all" placeholder="請輸入姓名" oninput="saveUserName()">
+        </div>
         <ul class="flex-1 mt-4">
             <li><button onclick="navTo('edit')" class="nav-btn w-full text-left p-4 hover:bg-slate-700 active-nav" id="btn-edit">📅 <span id="ui-nav-edit">編輯週報/日報</span></button></li>
             <li><button onclick="navTo('history')" class="nav-btn w-full text-left p-4 hover:bg-slate-700" id="btn-history">📚 <span id="ui-nav-history">歷史紀錄庫</span></button></li>
@@ -44,6 +48,7 @@
             <div class="flex justify-between items-center mb-6">
                 <div class="flex items-center gap-4">
                     <h1 id="ui-edit-title" class="text-2xl font-bold text-slate-800">報表編輯</h1>
+                    <div id="presence-msg" class="text-xs font-bold text-orange-500 bg-orange-50 px-3 py-1 rounded-full border border-orange-200 hidden animate-pulse"></div>
                     <div class="flex bg-slate-200 rounded-lg p-1 shadow-inner">
                         <button id="dept-mfg" onclick="changeDept('mfg')" class="px-4 py-1 rounded-md text-sm dept-active">製造 (Mfg)</button>
                         <button id="dept-qa" onclick="changeDept('qa')" class="px-4 py-1 rounded-md text-sm text-slate-600 font-bold" style="display: none;">品保 (QA)</button>
@@ -106,10 +111,21 @@
 
         let db = JSON.parse(localStorage.getItem('fb_arao_final_v32_db')) || {};
         let currentDept = 'mfg', isChanged = false, currentLang = 'zh';
+        let userName = localStorage.getItem('fb_arao_user') || "";
+        let hbTimer = null, currentEditId = null;
+
+        document.getElementById('user-name').value = userName;
+        function saveUserName() { 
+            const input = document.getElementById('user-name');
+            userName = input.value.trim(); 
+            localStorage.setItem('fb_arao_user', userName); 
+            input.classList.remove('border-red-500', 'bg-red-50');
+            if(currentEditId) sendHeartbeat();
+        }
 
         const i18n = {
-            zh: { mainTitle: "Feedback Technology Japan<br>製造工作排程系統", subTitle: "日本荒尾分工廠專用", navEdit: "編輯週報/日報", navHistory: "歷史紀錄庫", navDaily: "每日工作透視", editTitle: "報表編輯", btnNew: "建立新週報", btnSave: "儲存並同步至雲端", btnExport: "匯出完整 Excel", btnForceSync: "強制更新雲端同步", lblDate: "日期區間 (Start - End)", lblSummary: "本週摘要 (Enter 自動編號)", thDate: "日期", thName: "人員", thTask: "排程內容", thAction: "操作", btnAdd: "新增排程項目", historyTitle: "歷史紀錄庫", dailyTitle: "每日工作透視", warn: "尚未儲存，確定要切換嗎？", saveOk: "雲端同步成功！最新資料已匯入本機。" },
-            ja: { mainTitle: "Feedback Technology Japan<br>製造スケジュール", subTitle: "日本荒尾分工場専用", navEdit: "週報/日報の編集", navHistory: "履歴ログ", navDaily: "日次ビュー", editTitle: "レポート編集", btnNew: "新規作成", btnSave: "クラウドに保存して同期", btnExport: "Excel出力", btnForceSync: "クラウドと強制同期", lblDate: "日付期間 (Start - End)", lblSummary: "今週の概要 (自動番号)", thDate: "日付", thName: "担当者", thTask: "業務内容", thAction: "操作", btnAdd: "項目を追加", historyTitle: "履歴ログ", dailyTitle: "日次ビュー", warn: "保存されていない変更があります。", saveOk: "クラウドと同期しました！" }
+            zh: { mainTitle: "Feedback Technology Japan<br>製造工作排程系統", subTitle: "日本荒尾分工廠專用", navEdit: "編輯週報/日報", navHistory: "歷史紀錄庫", navDaily: "每日工作透視", editTitle: "報表編輯", btnNew: "建立新週報", btnSave: "儲存並同步至雲端", btnExport: "匯出完整 Excel", btnForceSync: "強制更新雲端同步", lblDate: "日期區間 (Start - End)", lblSummary: "本週摘要 (Enter 自動編號)", thDate: "日期", thName: "人員", thTask: "排程內容", thAction: "操作", btnAdd: "新增排程項目", historyTitle: "歷史紀錄庫", dailyTitle: "每日工作透視", warn: "尚未儲存，確定要切換嗎？", saveOk: "雲端同步成功！最新資料已匯入本機。", lblUser: "使用者姓名 Setup", userWarn: "請先輸入您的姓名再進行編輯！", conflictWarn: "⚠️ 偵測到衝突！\n\n雲端已有更晚的儲存紀錄 ({time})，您的版本可能較舊。\n確定要覆蓋雲端資料嗎？\n(建議取消後，先按強制更新再手動合併)", presenceMsg: "⚠️ {user} 正在編輯此報表..." },
+            ja: { mainTitle: "Feedback Technology Japan<br>製造スケジュール", subTitle: "日本荒尾分工場専用", navEdit: "週報/日報の編集", navHistory: "履歴ログ", navDaily: "日次ビュー", editTitle: "レポート編集", btnNew: "新規作成", btnSave: "クラウドに保存して同期", btnExport: "Excel出力", btnForceSync: "クラウドと強制同期", lblDate: "日付期間 (Start - End)", lblSummary: "今週の概要 (自動番号)", thDate: "日付", thName: "担当者", thTask: "業務内容", thAction: "操作", btnAdd: "項目を追加", historyTitle: "履歴ログ", dailyTitle: "日次ビュー", warn: "保存されていない変更があります。", saveOk: "クラウドと同期しました！", lblUser: "使用者の名前 Setup", userWarn: "編集する前に、お名前を入力してください！", conflictWarn: "⚠️ 競合が検出されました！\n\nクラウドに新しい記録 ({time}) があります。現在のバージョンは古い可能性があります。\n上書きしますか？\n(一度キャンセルし、強制同期してから手動でマージすることをお勧めします)", presenceMsg: "⚠️ {user} がこのレポートを編集しています..." }
         };
 
         async function syncFromCloud(force = false) {
@@ -135,6 +151,7 @@
                 if(dList && !dList.classList.contains('hidden')) renderDaily();
                 
                 if(force) alert("✅ 已成功從雲端更新最新資料！");
+                updatePresenceUI();
             } catch(e) {
                 console.error(e);
                 document.getElementById('cloud-status').innerHTML = "<span class='text-red-400'>⚠️ 雲端連線失敗</span>";
@@ -198,12 +215,48 @@
             document.getElementById('ui-btn-add').innerText = L.btnAdd;
             if(document.getElementById('ui-history-title')) document.getElementById('ui-history-title').innerText = L.historyTitle;
             if(document.getElementById('ui-daily-title')) document.getElementById('ui-daily-title').innerText = L.dailyTitle;
+            if(document.getElementById('ui-lbl-user')) document.getElementById('ui-lbl-user').innerText = L.lblUser;
+        }
+
+        async function sendHeartbeat() {
+            if(!userName || !currentEditId || GAS_URL.includes("在此貼上")) return;
+            try {
+                fetch(GAS_URL, {
+                    method: 'POST',
+                    body: JSON.stringify({ id: 'presence_' + currentEditId, data: { user: userName, time: Date.now() } }),
+                    headers: { "Content-Type": "text/plain;charset=utf-8" }
+                });
+            } catch(e) {}
+        }
+
+        function updatePresenceUI() {
+            const msg = document.getElementById('presence-msg');
+            if(!currentEditId || !msg) return;
+            const p = db['presence_' + currentEditId];
+            if(p && p.user !== userName && (Date.now() - p.time < 60000)) {
+                msg.innerText = i18n[currentLang].presenceMsg.replace('{user}', p.user);
+                msg.classList.remove('hidden');
+            } else {
+                msg.classList.add('hidden');
+            }
         }
 
         async function doSave() {
             const s = document.getElementById('dateS').value, e = document.getElementById('dateE').value;
             if(!s || !e) return alert("Select Dates!");
             const id = `${currentDept}_${s}_${e}`;
+            
+            // 衝突檢測
+            if(!GAS_URL.includes("在此貼上") && GAS_URL.trim() !== "") {
+                try {
+                    const res = await fetch(GAS_URL);
+                    const cloud = await res.json();
+                    if(cloud[id] && db[id] && cloud[id].updated !== db[id].updated) {
+                        if(!confirm(i18n[currentLang].conflictWarn.replace('{time}', cloud[id].updated))) return;
+                    }
+                } catch(e) {}
+            }
+
             const items = [];
             document.querySelectorAll('#tableBody tr').forEach(tr => {
                 items.push({ date: tr.querySelector('.item-date').value, name: tr.querySelector('.item-name').value, zh: tr.querySelector('.item-zh').value, ja: tr.querySelector('.translation-box').innerText });
@@ -324,6 +377,12 @@
 
         async function navTo(id) {
             if (isChanged && !confirm(i18n[currentLang].warn)) return;
+            if (id === 'edit' && !userName) {
+                const input = document.getElementById('user-name');
+                input.classList.add('border-red-500', 'bg-red-50');
+                input.focus();
+                return alert(i18n[currentLang].userWarn);
+            }
             document.querySelectorAll('.content-section').forEach(s => s.classList.add('hidden'));
             document.getElementById('section-' + id).classList.remove('hidden');
             document.querySelectorAll('.nav-btn').forEach(b => b.classList.remove('active-nav'));
@@ -341,6 +400,20 @@
                 }
                 const dateVal = document.getElementById('dailyDate') ? document.getElementById('dailyDate').value : '';
                 if(dateVal) renderDaily();
+            }
+            
+            if(id === 'edit') {
+                const s = document.getElementById('dateS').value, e = document.getElementById('dateE').value;
+                currentEditId = (s && e) ? `${currentDept}_${s}_${e}` : null;
+                if(currentEditId) {
+                    sendHeartbeat();
+                    if(!hbTimer) hbTimer = setInterval(sendHeartbeat, 30000);
+                }
+                updatePresenceUI();
+            } else {
+                currentEditId = null;
+                clearInterval(hbTimer); hbTimer = null;
+                document.getElementById('presence-msg').classList.add('hidden');
             }
             
             isChanged = false;
@@ -400,6 +473,12 @@
         }
 
         function loadRecord(id) {
+            if(!userName) {
+                const input = document.getElementById('user-name');
+                input.classList.add('border-red-500', 'bg-red-50');
+                input.focus();
+                return alert(i18n[currentLang].userWarn);
+            }
             const r = db[id]; currentDept = r.dept;
             
             // 修正：強制更新畫面上的「製造/品保」藍底按鈕，防止出現「點進 QA 紀錄，畫面上方卻亮著 MFG，導致使用者以為壞掉或是將新寫的內容又誤存回 QA」
@@ -407,6 +486,10 @@
             document.getElementById('dept-qa').className = (r.dept === 'qa') ? 'px-4 py-1 rounded-md text-sm dept-active' : 'px-4 py-1 rounded-md text-sm text-slate-600 font-bold';
             
             document.getElementById('dateS').value = r.s; document.getElementById('dateE').value = r.e;
+            currentEditId = id;
+            if(!hbTimer) hbTimer = setInterval(sendHeartbeat, 30000);
+            sendHeartbeat();
+            updatePresenceUI();
             document.getElementById('summary-zh').value = r.summary; document.getElementById('summary-ja').innerText = r.summaryJa;
             const b = document.getElementById('tableBody'); b.innerHTML = '';
             r.items.forEach(i => addRow(i)); navTo('edit'); isChanged = false;
