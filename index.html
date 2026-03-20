@@ -392,6 +392,8 @@
                         document.getElementById('cloud-status').innerText = "☁️ 雲端儲存與同步成功！";
                         setTimeout(() => document.getElementById('cloud-status').innerText = "", 3000);
                         alert(i18n[currentLang].saveOk);
+                        isChanged = false; // 標記為未修改，避免 navTo 彈出警告
+                        navTo('history');  // 自動導回歷史紀錄庫
                     }
                 } catch(e) {
                     console.error(e);
@@ -399,6 +401,8 @@
                 }
             } else {
                 alert("💡 若要啟用無縫多人協作，請參閱設定指南填寫雲端網址，目前資料僅存於本機。");
+                isChanged = false; // 標記為未修改
+                navTo('history');  // 自動導回歷史紀錄庫
             }
 
             localStorage.setItem('fb_arao_final_v32_db', JSON.stringify(db));
