@@ -2,7 +2,7 @@
 <html lang="zh-TW">
 <head>
     <meta charset="UTF-8">
-    <title>製造與品保工作排程系統 v4.0</title>
+    <title>Feedback Technology Japan 製造工作排程系統 v4.0</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
     <style>
@@ -19,7 +19,7 @@
 
     <nav class="sidebar flex flex-col shadow-xl">
         <div class="p-6 border-b border-slate-700 text-center">
-            <h2 id="ui-main-title" class="text-xl font-bold text-blue-400">製造與品保工作排程系統</h2>
+            <h2 id="ui-main-title" class="text-md font-bold text-blue-400 leading-tight">Feedback Technology Japan<br>製造工作排程系統</h2>
             <p id="ui-sub-title" class="text-[10px] text-slate-400 mt-1 uppercase tracking-widest text-center">Arao Factory Management</p>
             <div id="cloud-status" class="text-xs text-emerald-400 mt-2 font-bold h-4"></div>
         </div>
@@ -46,7 +46,7 @@
                     <h1 id="ui-edit-title" class="text-2xl font-bold text-slate-800">報表編輯</h1>
                     <div class="flex bg-slate-200 rounded-lg p-1 shadow-inner">
                         <button id="dept-mfg" onclick="changeDept('mfg')" class="px-4 py-1 rounded-md text-sm dept-active">製造 (Mfg)</button>
-                        <button id="dept-qa" onclick="changeDept('qa')" class="px-4 py-1 rounded-md text-sm text-slate-600 font-bold">品保 (QA)</button>
+                        <button id="dept-qa" onclick="changeDept('qa')" class="px-4 py-1 rounded-md text-sm text-slate-600 font-bold" style="display: none;">品保 (QA)</button>
                     </div>
                 </div>
                 <div class="flex gap-2">
@@ -108,8 +108,8 @@
         let currentDept = 'mfg', isChanged = false, currentLang = 'zh';
 
         const i18n = {
-            zh: { mainTitle: "製造與品保工作排程系統", subTitle: "日本荒尾分工廠專用", navEdit: "編輯週報/日報", navHistory: "歷史紀錄庫", navDaily: "每日工作透視", editTitle: "報表編輯", btnNew: "建立新週報", btnSave: "儲存並同步至雲端", btnExport: "匯出完整 Excel", btnForceSync: "強制更新雲端同步", lblDate: "日期區間 (Start - End)", lblSummary: "本週摘要 (Enter 自動編號)", thDate: "日期", thName: "人員", thTask: "排程內容", thAction: "操作", btnAdd: "新增排程項目", historyTitle: "歷史紀錄庫", dailyTitle: "每日工作透視", warn: "尚未儲存，確定要切換嗎？", saveOk: "雲端同步成功！最新資料已匯入本機。" },
-            ja: { mainTitle: "製造・品質保証スケジュール", subTitle: "日本荒尾分工場専用", navEdit: "週報/日報の編集", navHistory: "履歴ログ", navDaily: "日次ビュー", editTitle: "レポート編集", btnNew: "新規作成", btnSave: "クラウドに保存して同期", btnExport: "Excel出力", btnForceSync: "クラウドと強制同期", lblDate: "日付期間 (Start - End)", lblSummary: "今週の概要 (自動番号)", thDate: "日付", thName: "担当者", thTask: "業務内容", thAction: "操作", btnAdd: "項目を追加", historyTitle: "履歴ログ", dailyTitle: "日次ビュー", warn: "保存されていない変更があります。", saveOk: "クラウドと同期しました！" }
+            zh: { mainTitle: "Feedback Technology Japan<br>製造工作排程系統", subTitle: "日本荒尾分工廠專用", navEdit: "編輯週報/日報", navHistory: "歷史紀錄庫", navDaily: "每日工作透視", editTitle: "報表編輯", btnNew: "建立新週報", btnSave: "儲存並同步至雲端", btnExport: "匯出完整 Excel", btnForceSync: "強制更新雲端同步", lblDate: "日期區間 (Start - End)", lblSummary: "本週摘要 (Enter 自動編號)", thDate: "日期", thName: "人員", thTask: "排程內容", thAction: "操作", btnAdd: "新增排程項目", historyTitle: "歷史紀錄庫", dailyTitle: "每日工作透視", warn: "尚未儲存，確定要切換嗎？", saveOk: "雲端同步成功！最新資料已匯入本機。" },
+            ja: { mainTitle: "Feedback Technology Japan<br>製造スケジュール", subTitle: "日本荒尾分工場専用", navEdit: "週報/日報の編集", navHistory: "履歴ログ", navDaily: "日次ビュー", editTitle: "レポート編集", btnNew: "新規作成", btnSave: "クラウドに保存して同期", btnExport: "Excel出力", btnForceSync: "クラウドと強制同期", lblDate: "日付期間 (Start - End)", lblSummary: "今週の概要 (自動番号)", thDate: "日付", thName: "担当者", thTask: "業務内容", thAction: "操作", btnAdd: "項目を追加", historyTitle: "履歴ログ", dailyTitle: "日次ビュー", warn: "保存されていない変更があります。", saveOk: "クラウドと同期しました！" }
         };
 
         async function syncFromCloud(force = false) {
@@ -179,7 +179,7 @@
         function toggleLang() {
             currentLang = (currentLang === 'zh') ? 'ja' : 'zh';
             const L = i18n[currentLang];
-            document.getElementById('ui-main-title').innerText = L.mainTitle;
+            document.getElementById('ui-main-title').innerHTML = L.mainTitle;
             document.getElementById('ui-sub-title').innerText = L.subTitle;
             document.getElementById('ui-nav-edit').innerText = L.navEdit;
             document.getElementById('ui-nav-history').innerText = L.navHistory;
@@ -285,8 +285,8 @@
             const date = document.getElementById('dailyDate').value;
             const content = document.getElementById('dailyContent');
             if(!date) return; content.innerHTML = '';
-            ['mfg', 'qa'].forEach(dept => {
-                const name = dept === 'mfg' ? '製造部 (Manufacturing)' : '品保部 (QA)';
+            ['mfg'].forEach(dept => {
+                const name = dept === 'mfg' ? '製造 (Manufacturing)' : '品保 (QA)';
                 let html = `<div class="bg-white rounded-xl shadow p-6 border-t-8 ${dept==='mfg'?'border-blue-600':'border-purple-600'}">`;
                 html += `<h2 class="text-xl font-black text-slate-800 mb-4">${name}</h2>`;
                 let found = false;
@@ -296,7 +296,7 @@
                         found = true;
                         html += `<div class="mb-4 bg-slate-50 p-4 rounded border font-bold text-xs text-slate-400">來源期別: ${r.s} ~ ${r.e}</div>`;
                         todayItems.forEach(item => {
-                            html += `<div class="mb-6"><div class="font-bold text-blue-800 text-lg border-b pb-1">👤 ${item.name}</div><div class="text-slate-700 whitespace-pre-wrap mt-2 font-bold">${item.zh}</div><div class="mt-2 text-blue-500 italic text-sm p-2 bg-blue-50 rounded">${item.ja}</div></div>`;
+                            html += `<div class="mb-6"><div class="font-bold text-blue-800 text-lg border-b pb-1">👤 ${item.name}</div><div class="text-slate-700 whitespace-pre-wrap mt-2 font-bold">${item.zh}</div><div class="mt-2 text-blue-500 italic text-sm p-2 bg-blue-50 rounded whitespace-pre-wrap">${item.ja}</div></div>`;
                         });
                     }
                 });
