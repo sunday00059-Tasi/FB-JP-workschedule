@@ -30,7 +30,7 @@
         <ul class="flex-1 mt-4">
             <li><button onclick="navTo('edit')" class="nav-btn w-full text-left p-4 hover:bg-slate-700 active-nav" id="btn-edit">📅 <span id="ui-nav-edit">編輯週報/日報</span></button></li>
             <li><button onclick="navTo('history')" class="nav-btn w-full text-left p-4 hover:bg-slate-700" id="btn-history">📚 <span id="ui-nav-history">歷史紀錄庫</span></button></li>
-            <li><button onclick="navTo('daily')" class="nav-btn w-full text-left p-4 hover:bg-slate-700" id="btn-daily">☀️ <span id="ui-nav-daily">每日工作查詢</span></button></li>
+            <li><button onclick="navTo('daily')" class="nav-btn w-full text-left p-4 hover:bg-slate-700" id="btn-daily">☀️ <span id="ui-nav-daily">查詢每日工作</span></button></li>
         </ul>
         <div class="p-4 border-t border-slate-700 space-y-2">
             <div class="mb-2">
@@ -63,7 +63,7 @@
                 </div>
                 <div class="flex gap-2">
                     <button onclick="resetEdit()" class="bg-white border px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-slate-50">🆕 <span id="ui-btn-new">建立新週報</span></button>
-                    <button onclick="doSave()" class="bg-blue-600 text-white px-8 py-2 rounded-lg font-bold shadow-lg hover:bg-blue-700 transition">💾 <span id="ui-btn-save">儲存並同步至雲端</span></button>
+                    <button onclick="doSave()" class="bg-blue-600 text-white px-8 py-2 rounded-lg font-bold shadow-lg hover:bg-blue-700 transition">💾 <span id="ui-btn-save">儲存</span></button>
                 </div>
             </div>
 
@@ -102,7 +102,7 @@
         <section id="section-history" class="hidden content-section"><div id="histList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div></section>
         <section id="section-daily" class="hidden content-section">
             <div class="mb-6 flex flex-col md:flex-row justify-between items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-slate-200">
-                <h1 id="ui-daily-title" class="text-2xl font-bold text-slate-800">每日工作查詢</h1>
+                <h1 id="ui-daily-title" class="text-2xl font-bold text-slate-800">查詢每日工作</h1>
                 <div class="flex items-center gap-3 bg-blue-50 p-2 px-4 rounded-lg border border-blue-100">
                     <label id="ui-lbl-select-date" for="dailyDate" class="text-sm font-bold text-blue-600 mb-0">📅 請選擇查詢日期：</label>
                     <input type="date" id="dailyDate" class="border-2 border-blue-300 p-2 rounded-lg shadow-sm focus:ring-4 focus:ring-blue-100 outline-none font-bold text-blue-800" onchange="renderDaily()">
@@ -134,8 +134,8 @@
         }
 
         const i18n = {
-            zh: { mainTitle: "Feedback Technology Japan<br>製造工作排程系統", subTitle: "日本荒尾分工廠專用", navEdit: "編輯週報/日報", navHistory: "歷史紀錄庫", navDaily: "每日工作查詢", editTitle: "報表編輯", btnNew: "建立新週報", btnSave: "儲存並同步至雲端", btnExport: "匯出完整 Excel", btnForceSync: "強制更新雲端同步", lblDate: "日期區間 (Start - End)", lblSummary: "本週摘要 (Enter 自動編號)", thDate: "日期", thName: "人員", thTask: "排程內容", thAction: "操作", btnAdd: "新增排程項目", historyTitle: "歷史紀錄庫", dailyTitle: "每日工作查詢", warn: "尚未儲存，確定要切換嗎？", saveOk: "雲端同步成功！最新資料已匯入本機。", lblUser: "使用者姓名 Setup", userWarn: "請先輸入您的姓名再進行編輯！", lockWarn: "⚠️ 禁止儲存！{user} 正在編輯此報表，請稍後再試。", outdatedWarn: "⚠️ 禁止儲存！雲端已有更新版本 ({time})，請先點擊左側「強制更新雲端同步」後再進行儲存。", presenceMsg: "⚠️ {user} 正在編輯此報表...", readonlyTitle: "唯讀模式 (Read-only)", readonlyMsg: "目前 {user} 正在編輯此報表，為了避免衝突，您現在只能檢視內容，無法進行修改或儲存。", readonlyAlert: "⚠️ 注意：{user} 正在編輯中，目前為唯讀模式。", unlockAlert: "🎉 {user} 已編輯完成並離開。\n頁面將自動更新至最新狀態，您可以開始您的編輯了。", lblSelectDate: "📅 請選擇查詢日期：" },
-            ja: { mainTitle: "Feedback Technology Japan<br>製造スケジュール", subTitle: "日本荒尾分工場専用", navEdit: "週報/日報の編集", navHistory: "履歴ログ", navDaily: "日次クエリ", editTitle: "レポート編集", btnNew: "新規作成", btnSave: "クラウドに保存して同期", btnExport: "Excel出力", btnForceSync: "クラウドと強制同期", lblDate: "日付期間 (Start - End)", lblSummary: "今週の概要 (自動番号)", thDate: "日付", thName: "担当者", thTask: "業務内容", thAction: "操作", btnAdd: "項目を追加", historyTitle: "履歴ログ", dailyTitle: "日次クエリ", warn: "保存されていない変更があります。", saveOk: "クラウドと同期しました！", lblUser: "使用者の名前 Setup", userWarn: "編輯する前に、お名前を入力してください！", lockWarn: "⚠️ 保存は禁止されています！{user} がこのレポートを編輯しています。後でもう一度お試しください。", outdatedWarn: "⚠️ 保存は禁止されています！クラウドに新的版本 ({time}) があります。保存する前に「クラウドと強制同期」をクリックしてください。", presenceMsg: "⚠️ {user} がこのレポートを編輯しています...", readonlyTitle: "読み取り専用モード (Read-only)", readonlyMsg: "現在 {user} が這個レポートを編輯しています。衝突を避けるため、現在は表示のみ可能で、編輯や保存はできません。", readonlyAlert: "⚠️ 注意：{user} が編輯中のため、現在は読み取り専用モードです。", unlockAlert: "🎉 {user} が編輯を終了しました。\n最新の數據に更新され、編輯が可能になります。", lblSelectDate: "📅 検索日の選択：" }
+            zh: { mainTitle: "Feedback Technology Japan<br>製造工作排程系統", subTitle: "日本荒尾分工廠專用", navEdit: "編輯週報/日報", navHistory: "歷史紀錄庫", navDaily: "查詢每日工作", editTitle: "報表編輯", btnNew: "建立新週報", btnSave: "儲存", btnExport: "匯出完整 Excel", btnForceSync: "強制更新雲端同步", lblDate: "日期區間 (Start - End)", lblSummary: "本週摘要 (Enter 自動編號)", thDate: "日期", thName: "人員", thTask: "排程內容", thAction: "操作", btnAdd: "新增排程項目", historyTitle: "歷史紀錄庫", dailyTitle: "查詢每日工作", warn: "尚未儲存，確定要切換嗎？", saveOk: "雲端同步成功！最新資料已匯入本機。", lblUser: "使用者姓名 Setup", userWarn: "請先輸入您的姓名再進行編輯！", lockWarn: "⚠️ 禁止儲存！{user} 正在編輯此報表，請稍後再試。", outdatedWarn: "⚠️ 禁止儲存！雲端已有更新版本 ({time})，請先點擊左側「強制更新雲端同步」後再進行儲存。", presenceMsg: "⚠️ {user} 正在編輯此報表...", readonlyTitle: "唯讀模式 (Read-only)", readonlyMsg: "目前 {user} 正在編輯此報表，為了避免衝突，您現在只能檢視內容，無法進行修改或儲存。", readonlyAlert: "⚠️ 注意：{user} 正在編輯中，目前為唯讀模式。", unlockAlert: "🎉 {user} 已編輯完成並離開。\n頁面將自動更新至最新狀態，您可以開始您的編輯了。", lblSelectDate: "📅 請選擇查詢日期：" },
+            ja: { mainTitle: "Feedback Technology Japan<br>製造スケジュール", subTitle: "日本荒尾分工場専用", navEdit: "週報/日報の編集", navHistory: "履歴ログ", navDaily: "毎日のスケジュールを確認する", editTitle: "レポート編集", btnNew: "新規作成", btnSave: "保存", btnExport: "Excel出力", btnForceSync: "クラウドと強制同期", lblDate: "日付期間 (Start - End)", lblSummary: "今週の概要 (自動番号)", thDate: "日付", thName: "担当者", thTask: "業務内容", thAction: "操作", btnAdd: "項目を追加", historyTitle: "履歴ログ", dailyTitle: "毎日のスケジュールを確認する", warn: "保存されていない変更があります。", saveOk: "クラウドと同期しました！", lblUser: "使用者の名前 Setup", userWarn: "編輯する前に、お名前を入力してください！", lockWarn: "⚠️ 保存は禁止されています！{user} がこのレポートを編輯しています。後でもう一度お試しください。", outdatedWarn: "⚠️ 保存は禁止されています！クラウドに新的版本 ({time}) があります。保存する前に「クラウドと強制同期」をクリックしてください。", presenceMsg: "⚠️ {user} がこのレポートを編輯しています...", readonlyTitle: "読み取り専用モード (Read-only)", readonlyMsg: "現在 {user} が這個レポートを編輯しています。衝突を避けるため、現在は表示のみ可能で、編輯や保存はできません。", readonlyAlert: "⚠️ 注意：{user} が編輯中のため、現在は読み取り専用モードです。", unlockAlert: "🎉 {user} が編輯を終了しました。\n最新の數據に更新され、編輯が可能になります。", lblSelectDate: "📅 検索日の選択：" }
         };
 
         async function syncFromCloud(force = false) {
