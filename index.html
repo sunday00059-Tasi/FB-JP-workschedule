@@ -81,9 +81,9 @@
                 placeholder="請輸入姓名" oninput="saveUserName()">
         </div>
         <ul class="flex-1 mt-4">
-            <li><button onclick="navTo('edit')" class="nav-btn w-full text-left p-4 hover:bg-slate-700 active-nav"
+            <li><button onclick="navTo('edit')" class="nav-btn w-full text-left p-4 hover:bg-slate-700"
                     id="btn-edit">📅 <span id="ui-nav-edit">編輯週報/日報</span></button></li>
-            <li><button onclick="navTo('history')" class="nav-btn w-full text-left p-4 hover:bg-slate-700"
+            <li><button onclick="navTo('history')" class="nav-btn w-full text-left p-4 hover:bg-slate-700 active-nav"
                     id="btn-history">📚 <span id="ui-nav-history">歷史紀錄庫</span></button></li>
             <li><button onclick="navTo('daily')" class="nav-btn w-full text-left p-4 hover:bg-slate-700"
                     id="btn-daily">☀️ <span id="ui-nav-daily">查詢每日工作</span></button></li>
@@ -107,7 +107,7 @@
     </nav>
 
     <main class="main-content">
-        <section id="section-edit" class="content-section">
+        <section id="section-edit" class="content-section hidden">
             <div id="readonly-banner"
                 class="bg-amber-50 border border-amber-200 text-amber-800 p-4 rounded-xl mb-6 flex items-center gap-3 hidden">
                 <span class="text-xl">⚠️</span>
@@ -159,7 +159,7 @@
                     <label id="ui-lbl-summary" class="block text-sm font-bold text-slate-600 mb-2">本週摘要 (Enter
                         自動編號)</label>
                     <textarea id="summary-zh" placeholder="1. " onkeydown="handleAutoNumber(event)"
-                        onblur="trans(this, 'summary-ja')"></textarea>
+                        oninput="debouncedTrans(this, 'summary-ja')"></textarea>
                     <div id="summary-ja" class="translation-box italic text-blue-700">Translation...</div>
                 </div>
             </div>
@@ -182,7 +182,7 @@
             </div>
         </section>
 
-        <section id="section-history" class="hidden content-section">
+        <section id="section-history" class="content-section">
             <div id="histList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"></div>
         </section>
         <section id="section-daily" class="hidden content-section">
@@ -285,17 +285,42 @@
             }
         }
 
+        const debounce = (fn, ms) => {
+            let t;
+            return (...args) => {
+                clearTimeout(t);
+                t = setTimeout(() => fn.apply(this, args), ms);
+            };
+        };
+        const debouncedTrans = debounce(trans, 800);
+
         async function trans(el, tid) {
             const txt = el.value.trim();
             const target = document.getElementById(tid);
-            if (!txt) return;
-            const isJp = /[\u3040-\u309F\u30A0-\u30FF]/.test(txt);
+            if (!txt) {
+                target.innerText = "...";
+                return;
+            }
+
+            // 按行拆分，獨立翻譯以強化中日文混合識別 (避免整塊文字被误判為單一語種)
+            const lines = txt.split('\n');
             target.innerText = "...";
             try {
-                const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${isJp ? 'ja' : 'zh-TW'}&tl=${isJp ? 'zh-TW' : 'ja'}&dt=t&q=${encodeURIComponent(txt)}`);
-                const json = await res.json();
-                target.innerText = json[0].map(p => p[0]).join('');
-            } catch (e) { target.innerText = "Error"; }
+                const results = await Promise.all(lines.map(async (line) => {
+                    if (!line.trim()) return "";
+                    // 偵測單行語言：含有日文假名則設為來源 ja (翻成中文)，否則設為 zh-TW (翻成日文)
+                    const isLineJp = /[\u3040-\u309F\u30A0-\u30FF]/.test(line);
+                    const sl = isLineJp ? 'ja' : 'zh-TW';
+                    const tl = isLineJp ? 'zh-TW' : 'ja';
+                    const res = await fetch(`https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sl}&tl=${tl}&dt=t&q=${encodeURIComponent(line)}`);
+                    const json = await res.json();
+                    return json[0].map(p => p[0]).join('');
+                }));
+                target.innerText = results.join('\n');
+            } catch (e) {
+                console.error(e);
+                target.innerText = "Error";
+            }
         }
 
         function toggleLang() {
@@ -587,7 +612,7 @@
                 <td class="p-3 align-top text-center border-r"><input type="date" class="w-full p-2 border rounded item-date text-sm" value="${data.date}" onchange="dirty()"></td>
                 <td class="p-3 align-top text-center border-r"><input type="text" class="w-full p-2 border rounded item-name text-sm text-center font-bold" value="${data.name}" placeholder="姓名"></td>
                 <td class="p-3 border-r">
-                    <textarea class="item-zh text-sm font-bold" onkeydown="handleAutoNumber(event)" onblur="trans(this, '${rid}-t')">${data.zh}</textarea>
+                    <textarea class="item-zh text-sm font-bold" onkeydown="handleAutoNumber(event)" oninput="debouncedTrans(this, '${rid}-t')">${data.zh}</textarea>
                     <div id="${rid}-t" class="translation-box">${data.ja || '...'}</div>
                 </td>
                 <td class="p-3 text-center align-top"><button onclick="this.closest('tr').remove(); dirty();" class="text-red-400 font-bold mt-2">✕</button></td>
